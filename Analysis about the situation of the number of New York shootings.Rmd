@@ -1,0 +1,202 @@
+---
+title: "Analysis about the situation of the number of New York shootings"
+author: "Lian"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  latex_engine: xelatex
+  word_document: default
+  keep_tex: yes
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r get_jhu_data,include=FALSE}
+##Get current Data in the four files
+#they all begin with the same way
+
+#url_in<-"https://catalog.data.gov/dataset/nypd-shooting-incident-data-historic"
+urls<-c("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD")
+#urls<-str_c(url_in,file_names)
+library(tidyverse)
+
+```
+
+
+## The purpose of the report 
+In order to improve the current situation of New York shootings, we need to obtain some information in two apects
+
+ 1,the trend of shooting frequency in recent years and predict the trend.
+ 2,the amount  of shootings in different regions, and imtercomparision between different regions.
+ 
+with the conclusions obtained above, we can focus our information on specific region, and aim at emphasis year to explore the reasons which cause the change.
+
+In the end, we can find out key points to solve the shooting problem which have confused the New York for a long time.
+
+
+## Read the data from NYPD
+```{r import_data,include=FALSE}
+shooting_cases<-read.csv(urls)
+
+```
+### table for specific parameters
+```{r tidy_global_data,echo=FALSE}
+  
+  shooting_cases_sel<-shooting_cases%>%
+  select(OCCUR_DATE,BORO, PERP_AGE_GROUP,PERP_SEX,VIC_RACE)
+  print(tail(shooting_cases_sel))
+```
+## Toal Accident of every month
+ 
+```{r tidy_global_data1,include=FALSE}
+shooting_CASES_ETHNIC<-shooting_cases_sel%>%
+  pivot_wider(names_from = VIC_RACE, values_from = VIC_RACE,    values_fn = list(VIC_RACE = ~1), values_fill = list(VIC_RACE = 0))
+### statistic different ethnic
+```
+
+```{r tidy_global_data2,include=FALSE}
+shooting_CASES_ETHNIC<-shooting_CASES_ETHNIC%>%
+     rename(BLACK_HISPANIC='BLACK HISPANIC',ASIAN_PACIFIC_ISLANDER='ASIAN / PACIFIC ISLANDER',AMERICAN_INDIAN_ALASKAN_NATIVE='AMERICAN INDIAN/ALASKAN NATIVE',WHITE_HISPANIC='WHITE HISPANIC')
+### rename the attibute
+```
+
+```{r tidy_global_data3,include=FALSE}
+shooting_CASES_ETHNIC<-shooting_CASES_ETHNIC%>%
+  group_by(OCCUR_DATE,BLACK,BLACK_HISPANIC,ASIAN_PACIFIC_ISLANDER,AMERICAN_INDIAN_ALASKAN_NATIVE,WHITE_HISPANIC,UNKNOWN)%>%
+     summarize(cases=sum(BLACK))%>%
+ select(OCCUR_DATE,BLACK,BLACK_HISPANIC,ASIAN_PACIFIC_ISLANDER,AMERICAN_INDIAN_ALASKAN_NATIVE,WHITE_HISPANIC,UNKNOWN)%>%
+ ungroup()
+### show the different ethnic after transform
+```
+
+```{r tidy_global_data4,include=FALSE}
+library(lubridate)
+shooting_CASES_ETHNIC<-shooting_CASES_ETHNIC%>%
+mutate(date=mdy(OCCUR_DATE))
+### Convert Date Format
+```
+
+```{r tidy_global_data5,include=FALSE}
+shooting_CASES_ETHNIC_sum<-shooting_CASES_ETHNIC%>%
+group_by(month = lubridate::floor_date(date, 'month')) %>%
+    summarize(sum_of_BLACK = sum(BLACK),sum_of_BLACK_HISPANIC = sum(BLACK_HISPANIC),sum_of_ASIAN_PACIFIC_ISLANDER = sum(ASIAN_PACIFIC_ISLANDER),sum_of_AMERICAN_INDIAN_ALASKAN_NATIVE = sum(AMERICAN_INDIAN_ALASKAN_NATIVE),sum_of_WHITE_HISPANIC = sum(WHITE_HISPANIC))
+
+### Data Statistic
+```
+### statistics of monthly cumulative data
+The dataset below show us that the shooting accident proportions of diverse ethnics are stable. So we should reflect on something we have to be in face of,such as whether the schools in some blocks are insufficient, or whether the relif funds is used properly. 
+```{r tidy_global_data6,echo=FALSE}
+shooting_CASES_ETHNIC_sum$sum <-rowSums(shooting_CASES_ETHNIC_sum[, 2:6])
+print(tail(shooting_CASES_ETHNIC_sum))
+```
+### visualizition of table
+
+```{r tidy_global_data7,echo=FALSE}
+shooting_CASES_ETHNIC_sum%>%
+    ggplot(aes(x=month,y=sum))+
+    geom_line(aes(color="sum"))+
+    geom_point(aes(color="sum"))+
+    labs(title="NYPD shooting accident",y="total accident of every month")
+```
+The trendency chat above show that the shooting crimes constantly decreased for  nearly 20 years. But in 2020, the number jump to a record high level. This is the critical problem to be solve. 
+### data analysis
+
+```{r tidy_global_data16,echo=FALSE}
+shooting_CASES_ETHNIC_sum%>%slice_max(sum)
+print(shooting_CASES_ETHNIC_sum)
+```
+## Model The Data And Prediction
+### table of prediction
+```{r tidy_global_data8,echo=FALSE}
+mod<-lm(sum~month,data=shooting_CASES_ETHNIC_sum)
+    shooting_CASES_ETHNIC_PRED<-shooting_CASES_ETHNIC_sum%>%
+      mutate(pred=predict(mod))
+    print(tail(shooting_CASES_ETHNIC_PRED))
+```
+### visualizition of prediction
+
+```{r tidy_global_data9,echo=FALSE}
+shooting_CASES_ETHNIC_PRED%>%
+    ggplot(aes(x=month,y=sum))+
+    geom_line(aes(color="sum"))+
+    geom_point(aes(color="sum"))+
+    geom_line(aes(y=pred,color="pred"))+
+    geom_point(aes(y=pred,color="pred"))+
+    labs(title="NYPD shooting accident prediction",y="total accident of every month")
+```
+  Obviously, The changing trend  is desending yearly.And according to the prediction, the shooting incidents should be less than the years before.Regretfully,the total number increased.Is there somethings special resulting in present situation.
+```{r}
+
+```
+
+## Toal Accident Of Every BORO
+
+
+```{r tidy_global_data10,include=FALSE}
+shooting_CASES_BORO<-shooting_cases_sel%>%
+  select(OCCUR_DATE,BORO)
+### statistic 
+```
+
+
+```{r tidy_global_data11,include=FALSE}
+shooting_CASES_BORO<-shooting_CASES_BORO%>%
+  pivot_wider(names_from = BORO, values_from =BORO,    values_fn = list(BORO= ~1), values_fill = list(BORO= 0))
+### Boros Transfered To Wider
+```
+
+
+```{r tidy_global_data12,include=FALSE}
+shooting_CASES_BORO<-shooting_CASES_BORO%>%
+     rename(STATEN_ISLAND='STATEN ISLAND')
+### Rename of Boros
+```
+
+
+```{r tidy_global_data13,include=FALSE}
+shooting_CASES_BORO<-shooting_CASES_BORO%>%
+mutate(date=mdy(OCCUR_DATE))
+### Convert Date Format
+```
+### Yearly statitics of boros
+```{r tidy_global_data14,echo=FALSE}
+shooting_CASES_BORO_sum<-shooting_CASES_BORO%>%
+group_by(month = lubridate::floor_date(date, 'year')) %>%
+    summarize(BROOKLYN = sum(BROOKLYN),QUEENS= sum(QUEENS),BRONX= sum(BRONX),MANHATTAN= sum(MANHATTAN),STATEN_ISLAND= sum(STATEN_ISLAND))
+print(tail(shooting_CASES_BORO_sum))
+```
+### visualize of statistic of boros
+
+```{r tidy_global_data15,echo=FALSE}
+
+shooting_CASES_BORO_sum%>%
+     ggplot(aes(x=month,y=BROOKLYN))+
+    geom_line(aes(color="BROOKLYN"))+
+    geom_point(aes(color="BROOKLYN"))+
+    geom_line(aes(y=QUEENS,color="QUEENS"))+
+    geom_point(aes(y=QUEENS,color="QUEENS"))+
+    geom_line(aes(y=MANHATTAN,color="MANHATTAN"))+
+    geom_point(aes(y=MANHATTAN,color="MANHATTAN"))+
+    geom_line(aes(y=STATEN_ISLAND,color="STATEN_ISLAND"))+
+    geom_point(aes(y=STATEN_ISLAND,color="STATEN_ISLAND"))+
+    labs(title="NYPD shooting accident",y="statistic of boros")
+```
+   On the base of the analysis of different regions,the portion of the incidents is normal.There is no regions that the total increased more than others.Maybe the epidemic situation is the main reason.
+```{r}
+
+```
+
+
+## Bias possible in the data analysis
+
+1、There are some accident unkown for many reason,such as many people won't call the police for virious reasons.
+2、The outlier occured some time,but i don't discard them but choose to colculation the mean.
+3、The data collected from perpetrator may be misleading,due to the criminals have motivation to provide false information to escape punishment.
+
+## Conclusion
+The amount of shootings in different regions is  distinct.For  instanse,In Brooklyn, the shooting quantity is over 2 times more than other regions. And although the numbers have changed by a large margin, the proportion of the shooting accidents is stable, which indicates that this kind of crime is integral, not a special problem in one region.
+And the trend of the year also demonstrates an astonishing fact,that after constant redution from 2000, in 2021, the amount jump to a record high. What happened? this is the primary issue we must give out the answer.  
+Comprehensively, the shooting problem is still severe. However, according to the data analysis, we also find out some critical information to help us to improve the situation. 
+```{r}
+
+```
